@@ -872,6 +872,8 @@ func RunCreateCluster(f *util.Factory, out io.Writer, c *CreateClusterOptions) e
 		cluster.Spec.Networking.AmazonVPC = &api.AmazonVPCNetworkingSpec{}
 	case "cilium":
 		cluster.Spec.Networking.Cilium = &api.CiliumNetworkingSpec{}
+	case "lyftvpc":
+		cluster.Spec.Networking.LyftVPC = &api.LyftVPCNetworkingSpec{}
 	default:
 		return fmt.Errorf("unknown networking mode %q", c.Networking)
 	}
@@ -1132,7 +1134,7 @@ func RunCreateCluster(f *util.Factory, out io.Writer, c *CreateClusterOptions) e
 		}
 	}
 
-	// Can we acutally get to this if??
+	// Can we actually get to this if??
 	if targetName != "" {
 		if isDryrun {
 			fmt.Fprintf(out, "Previewing changes that will be made:\n\n")

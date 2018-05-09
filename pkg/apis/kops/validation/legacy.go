@@ -185,7 +185,7 @@ func ValidateCluster(c *kops.Cluster, strict bool) *field.Error {
 			return field.Invalid(fieldSpec.Child("NonMasqueradeCIDR"), nonMasqueradeCIDRString, "Cluster had an invalid NonMasqueradeCIDR")
 		}
 
-		if networkCIDR != nil && subnetsOverlap(nonMasqueradeCIDR, networkCIDR) && c.Spec.Networking != nil && c.Spec.Networking.AmazonVPC == nil {
+		if networkCIDR != nil && subnetsOverlap(nonMasqueradeCIDR, networkCIDR) && c.Spec.Networking != nil && c.Spec.Networking.AmazonVPC == nil && c.Spec.Networking.LyftVPC == nil {
 			return field.Invalid(fieldSpec.Child("NonMasqueradeCIDR"), nonMasqueradeCIDRString, fmt.Sprintf("NonMasqueradeCIDR %q cannot overlap with NetworkCIDR %q", nonMasqueradeCIDRString, c.Spec.NetworkCIDR))
 		}
 
@@ -233,14 +233,21 @@ func ValidateCluster(c *kops.Cluster, strict bool) *field.Error {
 		switch action {
 		case "", "ACCEPT", "DROP", "RETURN":
 		default:
-			return field.Invalid(fieldSpec.Child("Networking", "Canal", "DefaultEndpointToHostAction"), action, fmt.Sprintf("Unsupported value: %s, supports ACCEPT, DROP or RETURN", action))
+			return field.Invalid(fieldSpec.Child("Networking", "Canal", "DefaultEndpointToHostAction"), action, fmt.Sprintf("Unsupported value: %s, supports 'ACCEPT', 'DROP' or 'RETURN'", action))
 		}
 
 		chainInsertMode := c.Spec.Networking.Canal.ChainInsertMode
 		switch chainInsertMode {
 		case "", "insert", "append":
 		default:
-			return field.Invalid(fieldSpec.Child("Networking", "Canal", "ChainInsertMode"), action, fmt.Sprintf("Unsupported value: %s, supports 'insert' or 'append'", chainInsertMode))
+			return field.Invalid(fieldSpec.Child("Networking", "Canal", "ChainInsertMode"), chainInsertMode, fmt.Sprintf("Unsupported value: %s, supports 'insert' or 'append'", chainInsertMode))
+		}
+
+		logSeveritySys := c.Spec.Networking.Canal.LogSeveritySys
+		switch logSeveritySys {
+		case "", "INFO", "DEBUG", "WARNING", "ERROR", "CRITICAL", "NONE":
+		default:
+			return field.Invalid(fieldSpec.Child("Networking", "Canal", "LogSeveritySys"), logSeveritySys, fmt.Sprintf("Unsupported value: %s, supports 'INFO', 'DEBUG', 'WARNING', 'ERROR', 'CRITICAL' or 'NONE'", logSeveritySys))
 		}
 	}
 
@@ -485,7 +492,7 @@ func ValidateCluster(c *kops.Cluster, strict bool) *field.Error {
 		}
 	}
 
-	if c.Spec.Networking != nil && c.Spec.Networking.AmazonVPC != nil &&
+	if c.Spec.Networking != nil && (c.Spec.Networking.AmazonVPC != nil || c.Spec.Networking.LyftVPC != nil) &&
 		c.Spec.Kubelet != nil && (c.Spec.Kubelet.CloudProvider != "aws") {
 		return field.Invalid(fieldSpec.Child("Networking"), "amazon-vpc-routed-eni", "amazon-vpc-routed-eni networking is supported only in AWS")
 	}
@@ -497,6 +504,10 @@ func ValidateCluster(c *kops.Cluster, strict bool) *field.Error {
 
 		if c.Spec.Networking != nil && c.Spec.Networking.AmazonVPC != nil {
 			return field.Invalid(fieldSpec.Child("Networking"), "amazon-vpc-routed-eni", "amazon-vpc-routed-eni networking is not supported with kubernetes versions 1.6 or lower")
+		}
+
+		if c.Spec.Networking != nil && c.Spec.Networking.LyftVPC != nil {
+			return field.Invalid(fieldSpec.Child("Networking"), "cni-ipvlan-vpc-k8s", "cni-ipvlan-vpc-k8s networking is not supported with kubernetes versions 1.6 or lower")
 		}
 	}
 
